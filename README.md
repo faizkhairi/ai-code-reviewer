@@ -1,5 +1,11 @@
 # AI Code Reviewer
 
+<p align="center">
+  <img src="./docs/demo.gif" alt="AI Code Reviewer Demo" width="800">
+</p>
+
+> **📸 Screenshot placeholder** — See [docs/CAPTURE_INSTRUCTIONS.md](./docs/CAPTURE_INSTRUCTIONS.md) for capture instructions
+
 Get instant AI-powered code reviews with streaming output. Choose between OpenAI GPT-4o and Claude Sonnet, select a review focus (general, security, performance, or bug detection), and receive detailed, actionable feedback.
 
 ## Features
