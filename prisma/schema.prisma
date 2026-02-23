@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // url deliberately omitted — connection string lives in prisma/config.ts (Prisma 7 pattern)
+}
+
+// ─── Auth (NextAuth v5 + PrismaAdapter) ──────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  githubId      String?   @unique
+  githubUsername String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  installations Installation[]
+  reviews       Review[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── GitHub App ───────────────────────────────────────────────────────────────
+
+// One row per GitHub App installation (org or user account)
+model Installation {
+  id             String    @id @default(cuid())
+  installationId Int       @unique // GitHub's numeric installation ID
+  accountLogin   String    // org or username (e.g. "faizkhairi")
+  accountType    String    // "User" | "Organization"
+  userId         String?   // linked to our user if they authenticated
+  installedAt    DateTime  @default(now())
+  suspendedAt    DateTime? // set when GitHub fires installation.suspend/delete
+
+  user    User?    @relation(fields: [userId], references: [id])
+  reviews Review[]
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+// Immutable record of every AI review performed (manual + bot)
+model Review {
+  id              String       @id @default(cuid())
+  userId          String?      // set for manual reviews (web UI)
+  installationId  String?      // set for bot reviews (GitHub App webhook)
+
+  // PR context (bot reviews)
+  repoOwner       String       @default("")
+  repoName        String       @default("")
+  prNumber        Int          @default(0)
+  prTitle         String       @default("")
+  prUrl           String       @default("")
+  headSha         String       @default("") // idempotency key — same commit never reviewed twice
+
+  reviewType      String       @default("general")
+  provider        String       @default("openai")
+  status          ReviewStatus @default(PENDING)
+
+  content         String?      @db.Text // full review markdown
+  summary         String?      // first 300 chars (list view)
+  filesReviewed   Int          @default(0)
+  githubCommentId Int?         // GitHub PR review ID after posting
+
+  errorMessage    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  installation Installation? @relation(fields: [installationId], references: [id])
+  user         User?         @relation(fields: [userId], references: [id])
+
+  // Prevents reviewing the same commit push twice (pull_request.synchronize fires on every push)
+  @@unique([repoOwner, repoName, prNumber, headSha])
+  @@index([installationId, status])
+  @@index([userId, createdAt])
+}
+
+enum ReviewStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
