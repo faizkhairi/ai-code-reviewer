@@ -19,6 +19,6 @@ export function getGitHubApp(): App {
     },
   })
 
-  if (process.env.NODE_ENV !== "production") globalForGitHub.githubApp = app
+  globalForGitHub.githubApp = app
   return app
 }
