@@ -65,6 +65,8 @@ async function handler(req: Request) {
 
   try {
     // ── Fetch PR diff files ────────────────────────────────────────────────
+    // @octokit/app's getInstallationOctokit returns base Octokit (no .rest types).
+    // The .rest plugin IS loaded at runtime; only the TypeScript generic is missing.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const octokit = (await getGitHubApp().getInstallationOctokit(githubInstallationId)) as any
 

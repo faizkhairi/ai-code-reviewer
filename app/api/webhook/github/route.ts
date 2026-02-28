@@ -20,16 +20,21 @@ export async function POST(req: Request) {
     encoder.encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"],
+    ["verify"],
   )
-  const mac = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody))
-  const expected =
-    "sha256=" +
-    Array.from(new Uint8Array(mac))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("")
-
-  if (signature !== expected) {
+  // Use crypto.subtle.verify for constant-time comparison — it computes the MAC
+  // and compares internally, preventing timing attacks without manual hex encoding.
+  const sigHex = signature.startsWith("sha256=") ? signature.slice(7) : ""
+  const sigBytes = new Uint8Array(
+    (sigHex.match(/.{2}/g) ?? []).map((b) => parseInt(b, 16)),
+  )
+  const isValid = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    sigBytes,
+    encoder.encode(rawBody),
+  )
+  if (!isValid) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
   }
 

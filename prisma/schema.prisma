@@ -86,13 +86,13 @@ model Review {
   userId          String?      // set for manual reviews (web UI)
   installationId  String?      // set for bot reviews (GitHub App webhook)
 
-  // PR context (bot reviews)
+  // PR context (bot reviews — defaults allow manual reviews to omit these fields)
   repoOwner       String       @default("")
   repoName        String       @default("")
   prNumber        Int          @default(0)
   prTitle         String       @default("")
   prUrl           String       @default("")
-  headSha         String       @default("") // idempotency key — same commit never reviewed twice
+  headSha         String       // idempotency key — no default, callers must always provide a real SHA
 
   reviewType      String       @default("general")
   provider        String       @default("openai")
